@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Ghost Finder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Fira+Code:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+/* ── Reset & Root ───────────────────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:    #0c0c14;
+  --ink2:   #13131f;
+  --ink3:   #1c1c2e;
+  --ink4:   #252538;
+  --line:   #2e2e46;
+  --muted:  #555570;
+  --dim:    #888899;
+  --text:   #ddddf0;
+  --bright: #f0f0ff;
+  --ghost:  #a78bfa;   /* ghost purple */
+  --ghost2: #7c3aed;
+  --mutual: #34d399;   /* mutual green */
+  --danger: #f87171;   /* unfollower red */
+  --amber:  #fbbf24;
+  --cyan:   #22d3ee;
+  --glow-g: rgba(167,139,250,0.18);
+  --glow-m: rgba(52,211,153,0.15);
+  --glow-d: rgba(248,113,113,0.15);
+}
+
+html,body{width:400px;min-height:520px;background:var(--ink);color:var(--text);font-family:'Syne',sans-serif;overflow-x:hidden}
+
+/* ── Scrollbar ──────────────────────────────────────────────────────── */
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:2px}
+
+/* ── Header ─────────────────────────────────────────────────────────── */
+.hd{
+  background:linear-gradient(135deg,#0f0f1e 0%,#141428 100%);
+  border-bottom:1px solid var(--line);
+  padding:14px 16px 10px;
+  position:relative;overflow:hidden;
+}
+.hd::after{
+  content:'';position:absolute;top:-40px;right:-40px;
+  width:140px;height:140px;
+  background:radial-gradient(circle,rgba(167,139,250,.1) 0%,transparent 70%);
+  pointer-events:none;
+}
+.hd-row{display:flex;align-items:center;gap:10px}
+.logo-wrap{
+  width:32px;height:32px;border-radius:10px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--ghost),#c4b5fd);
+  display:flex;align-items:center;justify-content:center;font-size:16px;
+  box-shadow:0 0 16px rgba(167,139,250,.4);
+}
+.app-title{font-size:15px;font-weight:800;letter-spacing:-.3px;color:var(--bright)}
+.app-sub{font-size:9px;font-family:'Fira Code',monospace;color:var(--muted);margin-top:1px}
+.pill{
+  margin-left:auto;font-size:8px;font-family:'Fira Code',monospace;
+  background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.25);
+  color:var(--ghost);padding:2px 7px;border-radius:20px;
+}
+
+/* status row */
+.status-row{
+  display:flex;align-items:center;gap:6px;margin-top:8px;
+  font-size:10px;font-family:'Fira Code',monospace;color:var(--muted);
+}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s,box-shadow .3s}
+.dot.ready{background:var(--mutual);box-shadow:0 0 6px var(--mutual)}
+.dot.busy{background:var(--amber);box-shadow:0 0 6px var(--amber);animation:blink 1s infinite}
+.dot.err{background:var(--danger);box-shadow:0 0 6px var(--danger)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* ── Profile strip ──────────────────────────────────────────────────── */
+.profile-strip{
+  background:var(--ink2);border-bottom:1px solid var(--line);
+  padding:7px 16px;display:flex;align-items:center;gap:8px;min-height:32px;
+}
+.profile-strip .lbl{font-size:8px;font-family:'Fira Code',monospace;text-transform:uppercase;letter-spacing:1px;color:var(--muted);flex-shrink:0}
+.profile-strip .val{font-size:10px;font-family:'Fira Code',monospace;color:var(--cyan);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ── Not-Instagram screen ────────────────────────────────────────────── */
+#screen-noig{padding:40px 20px;text-align:center;display:none}
+#screen-noig .ni-icon{font-size:40px;margin-bottom:12px}
+#screen-noig .ni-title{font-size:14px;font-weight:700;color:var(--dim);margin-bottom:6px}
+#screen-noig .ni-desc{font-size:11px;color:var(--muted);line-height:1.6}
+#screen-noig .ni-desc strong{color:var(--text)}
+
+/* ── Main app screen ─────────────────────────────────────────────────── */
+#screen-main{display:none;flex-direction:column}
+
+/* ── Tabs ────────────────────────────────────────────────────────────── */
+.tabs{display:flex;border-bottom:1px solid var(--line);background:var(--ink2)}
+.tab{
+  flex:1;padding:9px 0;font-size:11px;font-weight:600;
+  text-align:center;cursor:pointer;color:var(--muted);
+  border-bottom:2px solid transparent;transition:all .2s;
+  position:relative;
+}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--bright);border-bottom-color:var(--ghost)}
+.tab .tab-badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:8px;font-family:'Fira Code',monospace;
+  background:var(--ink4);border:1px solid var(--line);
+  border-radius:10px;padding:1px 5px;margin-left:5px;
+  color:var(--dim);transition:all .2s;min-width:22px;
+}
+.tab.active .tab-badge{background:rgba(167,139,250,.15);border-color:rgba(167,139,250,.3);color:var(--ghost)}
+.tab .tab-check{
+  position:absolute;top:4px;right:8px;font-size:8px;
+  color:var(--mutual);display:none;
+}
+.tab.done .tab-check{display:block}
+
+/* ── Tab panels ─────────────────────────────────────────────────────── */
+.panel{display:none;flex-direction:column;padding:14px 16px;gap:12px}
+.panel.active{display:flex}
+
+/* ── Collect panel (followers / following) ──────────────────────────── */
+.collect-card{
+  background:var(--ink2);border:1px solid var(--line);
+  border-radius:12px;padding:14px;
+}
+.collect-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px}
+.collect-title{font-size:13px;font-weight:700;color:var(--bright)}
+.collect-sub{font-size:10px;color:var(--muted);margin-top:2px;font-family:'Fira Code',monospace}
+
+/* ring progress */
+.ring-wrap{position:relative;width:52px;height:52px;flex-shrink:0}
+.ring-svg{width:52px;height:52px;transform:rotate(-90deg)}
+.ring-track{fill:none;stroke:var(--ink4);stroke-width:4}
+.ring-fill{fill:none;stroke-width:4;stroke-linecap:round;transition:stroke-dashoffset .5s ease}
+.ring-label{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:0;
+}
+.ring-num{font-size:10px;font-weight:700;font-family:'Fira Code',monospace;color:var(--bright);line-height:1}
+.ring-pct{font-size:7px;font-family:'Fira Code',monospace;color:var(--muted);margin-top:1px}
+
+/* session + total stats row */
+.stats-row{display:flex;gap:8px;margin-bottom:10px}
+.stat-box{
+  flex:1;background:var(--ink3);border:1px solid var(--line);border-radius:8px;
+  padding:7px 10px;text-align:center;
+}
+.stat-num{font-size:15px;font-weight:700;font-family:'Fira Code',monospace;color:var(--bright)}
+.stat-lbl{font-size:8px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.5px}
+
+/* instructions */
+.instr{
+  background:var(--ink3);border:1px solid var(--line);border-left:3px solid var(--cyan);
+  border-radius:8px;padding:9px 11px;font-size:10px;color:var(--dim);line-height:1.6;
+  margin-bottom:10px;
+}
+.instr span{color:var(--cyan);font-weight:600}
+
+/* buttons */
+.btn-row{display:flex;gap:8px}
+.btn{
+  flex:1;padding:9px 14px;border-radius:9px;border:1px solid var(--line);
+  background:var(--ink3);color:var(--dim);
+  font-family:'Syne',sans-serif;font-size:11px;font-weight:600;
+  cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:5px;
+}
+.btn:hover:not(:disabled){background:var(--ink4);color:var(--text)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn.primary{
+  background:linear-gradient(135deg,var(--ghost2),var(--ghost));
+  border-color:transparent;color:white;
+  box-shadow:0 2px 12px rgba(167,139,250,.3);
+}
+.btn.primary:hover:not(:disabled){
+  box-shadow:0 4px 20px rgba(167,139,250,.4);
+  transform:translateY(-1px);
+}
+.btn.danger{border-color:var(--danger);color:var(--danger);background:rgba(248,113,113,.06)}
+.btn.danger:hover:not(:disabled){background:rgba(248,113,113,.12)}
+.btn.success-btn{border-color:var(--mutual);color:var(--mutual);background:rgba(52,211,153,.06)}
+
+/* ── Progress log ───────────────────────────────────────────────────── */
+.log-card{
+  background:var(--ink2);border:1px solid var(--line);border-radius:10px;
+  overflow:hidden;
+}
+.log-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 12px;border-bottom:1px solid var(--line);
+}
+.log-title{font-size:9px;font-family:'Fira Code',monospace;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+.log-clear{font-size:9px;font-family:'Fira Code',monospace;color:var(--muted);cursor:pointer;background:none;border:none;padding:0}
+.log-clear:hover{color:var(--text)}
+.log-body{height:90px;overflow-y:auto;padding:6px 12px;display:flex;flex-direction:column;gap:1px}
+.log-line{display:flex;gap:8px;font-size:9.5px;font-family:'Fira Code',monospace;animation:fadein .15s ease}
+@keyframes fadein{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:translateY(0)}}
+.log-ts{color:var(--muted);flex-shrink:0}
+.log-msg{color:var(--dim)}
+.log-msg.hi{color:var(--cyan)}
+.log-msg.ok{color:var(--mutual)}
+.log-msg.warn{color:var(--amber)}
+.log-msg.err{color:var(--danger)}
+.log-msg.ghost{color:var(--ghost)}
+
+/* ── Ghost panel ─────────────────────────────────────────────────────── */
+#panel-ghosts .ghost-header-card{
+  background:linear-gradient(135deg,rgba(124,58,237,.15),rgba(167,139,250,.08));
+  border:1px solid rgba(167,139,250,.2);border-radius:12px;padding:14px;
+  margin-bottom:12px;
+}
+.ghost-hero{display:flex;align-items:center;gap:14px}
+.ghost-icon-big{font-size:36px;filter:drop-shadow(0 0 12px rgba(167,139,250,.6))}
+.ghost-count{font-size:32px;font-weight:800;color:var(--bright);font-family:'Fira Code',monospace;line-height:1}
+.ghost-count-lbl{font-size:10px;color:var(--ghost);margin-top:2px}
+.ghost-meta{
+  display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;
+}
+.ghost-stat{
+  font-size:9px;font-family:'Fira Code',monospace;
+  background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.15);
+  border-radius:6px;padding:3px 8px;color:var(--dim);
+}
+.ghost-stat strong{color:var(--ghost)}
+
+/* needs-more banner */
+.needs-more{
+  background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.2);
+  border-radius:8px;padding:9px 12px;font-size:10px;color:var(--amber);
+  display:flex;align-items:center;gap:8px;margin-bottom:10px;
+}
+.needs-more .nm-icon{font-size:16px;flex-shrink:0}
+
+/* ghost list */
+.ghost-list-wrap{
+  background:var(--ink2);border:1px solid var(--line);border-radius:10px;overflow:hidden;
+  max-height:220px;overflow-y:auto;
+}
+.ghost-list-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:7px 12px;border-bottom:1px solid var(--line);position:sticky;top:0;
+  background:var(--ink2);z-index:1;
+}
+.ghost-list-title{font-size:9px;font-family:'Fira Code',monospace;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+.ghost-list-filter{
+  font-size:9px;font-family:'Fira Code',monospace;
+  background:var(--ink3);border:1px solid var(--line);color:var(--text);
+  border-radius:4px;padding:2px 6px;outline:none;
+}
+.ghost-list-filter:focus{border-color:var(--ghost)}
+.ghost-item{
+  display:flex;align-items:center;gap:10px;padding:7px 12px;
+  border-bottom:1px solid rgba(46,46,70,.5);
+  animation:fadein .2s ease;cursor:pointer;transition:background .15s;
+}
+.ghost-item:last-child{border-bottom:none}
+.ghost-item:hover{background:var(--ink3)}
+.ghost-item .gi-avatar{
+  width:28px;height:28px;border-radius:50%;background:var(--ink4);
+  border:1px solid rgba(167,139,250,.2);flex-shrink:0;object-fit:cover;
+}
+.ghost-item .gi-info{min-width:0;flex:1}
+.ghost-item .gi-user{font-size:11px;font-weight:600;color:var(--bright);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ghost-item .gi-name{font-size:9px;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}
+.ghost-item .gi-link{
+  font-size:9px;font-family:'Fira Code',monospace;
+  color:var(--ghost);text-decoration:none;flex-shrink:0;
+  background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.2);
+  padding:2px 7px;border-radius:5px;
+}
+.ghost-item .gi-link:hover{background:rgba(167,139,250,.2)}
+.ghost-empty{
+  padding:24px;text-align:center;font-size:11px;color:var(--muted);
+  font-family:'Fira Code',monospace;
+}
+
+/* download row */
+.dl-row{display:flex;gap:8px}
+
+/* ── Reset modal ─────────────────────────────────────────────────────── */
+#reset-modal{
+  position:fixed;inset:0;background:rgba(12,12,20,.85);
+  display:none;align-items:center;justify-content:center;z-index:100;
+  backdrop-filter:blur(4px);
+}
+#reset-modal.open{display:flex}
+.modal-box{
+  background:var(--ink2);border:1px solid var(--line);border-radius:14px;
+  padding:20px;width:300px;text-align:center;
+}
+.modal-box .m-icon{font-size:28px;margin-bottom:10px}
+.modal-box .m-title{font-size:14px;font-weight:700;color:var(--bright);margin-bottom:6px}
+.modal-box .m-desc{font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:16px}
+.modal-btns{display:flex;gap:8px}
+
+/* ── Footer ──────────────────────────────────────────────────────────── */
+.footer{
+  padding:7px 16px;border-top:1px solid var(--line);
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--ink2);
+}
+.footer-note{font-size:8px;font-family:'Fira Code',monospace;color:var(--muted)}
+.footer-profile{font-size:8px;font-family:'Fira Code',monospace;color:var(--ghost)}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hd">
+  <div class="hd-row">
+    <div class="logo-wrap">👻</div>
+    <div>
+      <div class="app-title">Ghost Finder</div>
+      <div class="app-sub">Instagram Unfollow Tracker</div>
+    </div>
+    <div class="pill">v1.0</div>
+  </div>
+  <div class="status-row">
+    <div class="dot" id="dot"></div>
+    <span id="statusTxt">Initializing…</span>
+  </div>
+</div>
+
+<!-- PROFILE STRIP -->
+<div class="profile-strip">
+  <span class="lbl">Active</span>
+  <span class="val" id="activeUrl">—</span>
+</div>
+
+<!-- NOT INSTAGRAM -->
+<div id="screen-noig">
+  <div class="ni-icon">📵</div>
+  <div class="ni-title">Not on Instagram</div>
+  <div class="ni-desc">Navigate to <strong>instagram.com</strong> and open a friend's profile page to use Ghost Finder.</div>
+</div>
+
+<!-- MAIN APP -->
+<div id="screen-main">
+
+  <!-- TABS -->
+  <div class="tabs">
+    <div class="tab active" id="tab-followers">
+      Followers
+      <span class="tab-badge" id="badge-followers">0</span>
+      <span class="tab-check">✓</span>
+    </div>
+    <div class="tab" id="tab-following">
+      Following
+      <span class="tab-badge" id="badge-following">0</span>
+      <span class="tab-check">✓</span>
+    </div>
+    <div class="tab" id="tab-ghosts">
+      👻 Ghosts
+      <span class="tab-badge" id="badge-ghosts">—</span>
+    </div>
+  </div>
+
+  <!-- FOLLOWERS PANEL -->
+  <div class="panel active" id="panel-followers">
+
+    <div class="collect-card">
+      <div class="collect-header">
+        <div>
+          <div class="collect-title">Followers Collection</div>
+          <div class="collect-sub" id="fl-sub">People who follow your friend</div>
+        </div>
+        <div class="ring-wrap">
+          <svg class="ring-svg" viewBox="0 0 52 52">
+            <circle class="ring-track" cx="26" cy="26" r="22"/>
+            <circle class="ring-fill" id="ring-fl" cx="26" cy="26" r="22"
+              stroke="#a78bfa"
+              stroke-dasharray="138.2"
+              stroke-dashoffset="138.2"/>
+          </svg>
+          <div class="ring-label">
+            <div class="ring-num" id="ring-fl-num">0%</div>
+            <div class="ring-pct" id="ring-fl-pct"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="stat-num" id="fl-collected">0</div>
+          <div class="stat-lbl">Collected</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num" id="fl-total">—</div>
+          <div class="stat-lbl">Total</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num" id="fl-sessions">0</div>
+          <div class="stat-lbl">Sessions</div>
+        </div>
+      </div>
+
+      <div class="instr" id="fl-instr">
+        <span>①</span> Open the profile &nbsp;<span>②</span> Click <span>Followers</span> &nbsp;<span>③</span> Keep modal open &nbsp;<span>④</span> Press Scrape
+      </div>
+
+      <div class="btn-row">
+        <button class="btn primary" id="btn-fl-scrape">▶ Scrape Followers</button>
+        <button class="btn danger" id="btn-fl-abort" style="display:none;flex:0 0 auto;padding:9px 12px">■ Stop</button>
+        <button class="btn" id="btn-fl-reset" title="Clear saved followers data" style="flex:0 0 auto;padding:9px 10px">🗑</button>
+      </div>
+    </div>
+
+    <div class="log-card" id="log-fl">
+      <div class="log-header">
+        <span class="log-title">Activity Log</span>
+        <button class="log-clear" id="btn-clear-fl">clear</button>
+      </div>
+      <div class="log-body" id="log-fl-body">
+        <div class="log-line"><span class="log-ts">--:--:--</span><span class="log-msg">Waiting to start…</span></div>
+      </div>
+    </div>
+
+  </div><!-- /panel-followers -->
+
+  <!-- FOLLOWING PANEL -->
+  <div class="panel" id="panel-following">
+
+    <div class="collect-card">
+      <div class="collect-header">
+        <div>
+          <div class="collect-title">Following Collection</div>
+          <div class="collect-sub" id="fw-sub">People your friend follows</div>
+        </div>
+        <div class="ring-wrap">
+          <svg class="ring-svg" viewBox="0 0 52 52">
+            <circle class="ring-track" cx="26" cy="26" r="22"/>
+            <circle class="ring-fill" id="ring-fw" cx="26" cy="26" r="22"
+              stroke="#f87171"
+              stroke-dasharray="138.2"
+              stroke-dashoffset="138.2"/>
+          </svg>
+          <div class="ring-label">
+            <div class="ring-num" id="ring-fw-num">0%</div>
+            <div class="ring-pct" id="ring-fw-pct"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="stat-num" id="fw-collected">0</div>
+          <div class="stat-lbl">Collected</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num" id="fw-total">—</div>
+          <div class="stat-lbl">Total</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num" id="fw-sessions">0</div>
+          <div class="stat-lbl">Sessions</div>
+        </div>
+      </div>
+
+      <div class="instr">
+        <span>①</span> Open the profile &nbsp;<span>②</span> Click <span>Following</span> &nbsp;<span>③</span> Keep modal open &nbsp;<span>④</span> Press Scrape
+      </div>
+
+      <div class="btn-row">
+        <button class="btn primary" id="btn-fw-scrape">▶ Scrape Following</button>
+        <button class="btn danger" id="btn-fw-abort" style="display:none;flex:0 0 auto;padding:9px 12px">■ Stop</button>
+        <button class="btn" id="btn-fw-reset" title="Clear saved following data" style="flex:0 0 auto;padding:9px 10px">🗑</button>
+      </div>
+    </div>
+
+    <div class="log-card" id="log-fw">
+      <div class="log-header">
+        <span class="log-title">Activity Log</span>
+        <button class="log-clear" id="btn-clear-fw">clear</button>
+      </div>
+      <div class="log-body" id="log-fw-body">
+        <div class="log-line"><span class="log-ts">--:--:--</span><span class="log-msg">Waiting to start…</span></div>
+      </div>
+    </div>
+
+  </div><!-- /panel-following -->
+
+  <!-- GHOSTS PANEL -->
+  <div class="panel" id="panel-ghosts">
+
+    <!-- Hero card: ghost count -->
+    <div class="ghost-header-card">
+      <div class="ghost-hero">
+        <div class="ghost-icon-big">👻</div>
+        <div>
+          <div class="ghost-count" id="ghost-count">—</div>
+          <div class="ghost-count-lbl">people unfollowed your friend</div>
+        </div>
+      </div>
+      <div class="ghost-meta" id="ghost-meta"></div>
+    </div>
+
+    <!-- Needs-more warning (shown if either list is incomplete) -->
+    <div class="needs-more" id="needs-more" style="display:none">
+      <div class="nm-icon">⚠️</div>
+      <div id="needs-more-txt">Collect more data for accurate results.</div>
+    </div>
+
+    <!-- Ghost list -->
+    <div class="ghost-list-wrap">
+      <div class="ghost-list-header">
+        <span class="ghost-list-title">Ghost List</span>
+        <input class="ghost-list-filter" id="ghost-filter" placeholder="filter…" />
+      </div>
+      <div id="ghost-list-body">
+        <div class="ghost-empty">Collect both Followers and Following first to find ghosts.</div>
+      </div>
+    </div>
+
+    <!-- Downloads -->
+    <div class="dl-row">
+      <button class="btn success-btn" id="btn-dl-json">📄 JSON</button>
+      <button class="btn success-btn" id="btn-dl-csv">📊 CSV</button>
+      <button class="btn" id="btn-reset-all" style="flex:0 0 auto;padding:9px 12px">🗑 Reset All</button>
+    </div>
+
+  </div><!-- /panel-ghosts -->
+
+</div><!-- /screen-main -->
+
+<!-- RESET MODAL -->
+<div id="reset-modal">
+  <div class="modal-box">
+    <div class="m-icon">⚠️</div>
+    <div class="m-title">Clear Data?</div>
+    <div class="m-desc" id="modal-desc">This will permanently delete all saved data for this profile. You'll have to scrape again.</div>
+    <div class="modal-btns">
+      <button class="btn danger" id="btn-modal-confirm" style="flex:1">Yes, Clear</button>
+      <button class="btn" id="btn-modal-cancel" style="flex:1">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <span class="footer-note">Consent required · Respect ToS</span>
+  <span class="footer-profile" id="footer-profile"></span>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
